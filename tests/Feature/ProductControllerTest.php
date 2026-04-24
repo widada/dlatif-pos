@@ -181,6 +181,6 @@ class ProductControllerTest extends TestCase
         $response = $this->delete("/products/{$product->id}");
 
         $response->assertRedirect('/products');
-        $this->assertDatabaseMissing('products', ['id' => $product->id]);
+        $this->assertSoftDeleted('products', ['id' => $product->id]);
     }
 }
