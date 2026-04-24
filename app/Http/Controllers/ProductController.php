@@ -30,13 +30,23 @@ class ProductController extends Controller
             $query->where('category', $request->string('category'));
         }
 
-        $products = $query->orderBy('name')->paginate(15)->withQueryString();
+        $sortBy = $request->input('sort_by', 'name');
+        $sortDir = $request->input('sort_dir', 'asc');
+        $allowedSorts = ['name', 'stock', 'price_offline', 'category'];
+
+        if (in_array($sortBy, $allowedSorts)) {
+            $query->orderBy($sortBy, $sortDir === 'desc' ? 'desc' : 'asc');
+        } else {
+            $query->orderBy('name');
+        }
+
+        $products = $query->paginate(15)->withQueryString();
         $categories = Category::orderBy('name')->pluck('name');
 
         return Inertia::render('Products/Index', [
             'products' => $products,
             'categories' => $categories,
-            'filters' => $request->only(['search', 'category']),
+            'filters' => $request->only(['search', 'category', 'sort_by', 'sort_dir']),
         ]);
     }
 

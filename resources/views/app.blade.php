@@ -6,6 +6,14 @@
     <title inertia>{{ config('app.name', 'Dlatif POS') }}</title>
     <meta name="description" content="POS System untuk Toko Kosmetik & Aksesoris - Multi-channel penjualan Offline & Shopee">
 
+    <script>
+        // Apply theme BEFORE any CSS loads to prevent flash
+        (function() {
+            var theme = localStorage.getItem('theme') || 'dark';
+            document.documentElement.setAttribute('data-theme', theme);
+        })();
+    </script>
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">

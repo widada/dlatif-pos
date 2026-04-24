@@ -199,7 +199,7 @@ function submit() {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  color: #a1a1aa;
+  color: var(--c-text-muted);
   text-decoration: none;
   font-size: 0.85rem;
   margin-bottom: 1rem;
@@ -213,20 +213,20 @@ function submit() {
 .form-header h2 {
   font-size: 1.4rem;
   font-weight: 700;
-  color: white;
+  color: var(--c-text-white);
   margin: 0 0 0.3rem;
 }
 
 .form-header p {
   font-size: 0.85rem;
-  color: #71717a;
+  color: var(--c-text-dim);
   margin: 0;
 }
 
 /* Form Sections */
 .form-section {
-  background: linear-gradient(135deg, rgba(24, 24, 27, 0.8), rgba(39, 39, 42, 0.3));
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: var(--c-card);
+  border: 1px solid var(--c-border);
   border-radius: 16px;
   padding: 1.5rem;
   margin-bottom: 1rem;
@@ -237,7 +237,7 @@ function submit() {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: #a1a1aa;
+  color: var(--c-text-muted);
   margin: 0 0 1rem;
 }
 
@@ -264,7 +264,7 @@ function submit() {
 .form-group label {
   font-size: 0.8rem;
   font-weight: 500;
-  color: #a1a1aa;
+  color: var(--c-text-muted);
 }
 
 .required {
@@ -273,18 +273,18 @@ function submit() {
 
 .form-group input,
 .form-group select {
-  background: rgba(0, 0, 0, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--c-surface);
+  border: 1px solid var(--c-input-border);
   border-radius: 10px;
   padding: 0.625rem 0.875rem;
-  color: #e4e4e7;
+  color: var(--c-text);
   font-size: 0.875rem;
   outline: none;
   transition: all 0.2s;
 }
 
 .form-group input::placeholder {
-  color: #3f3f46;
+  color: var(--c-text-faint);
 }
 
 .form-group input:focus,
@@ -301,8 +301,8 @@ function submit() {
 .input-prefix {
   display: flex;
   align-items: center;
-  background: rgba(0, 0, 0, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--c-surface);
+  border: 1px solid var(--c-input-border);
   border-radius: 10px;
   overflow: hidden;
   transition: all 0.2s;
@@ -315,7 +315,7 @@ function submit() {
 
 .input-prefix span {
   padding: 0 0 0 0.875rem;
-  color: #52525b;
+  color: var(--c-text-faint);
   font-size: 0.85rem;
   font-weight: 500;
 }
@@ -339,7 +339,7 @@ function submit() {
 
 .help-text {
   font-size: 0.72rem;
-  color: #52525b;
+  color: var(--c-text-faint);
 }
 
 .margin-info {
@@ -362,7 +362,7 @@ function submit() {
   gap: 0.5rem;
   padding: 0.7rem 1.5rem;
   background: linear-gradient(135deg, #a855f7, #ec4899);
-  color: white;
+  color: var(--c-text-white);
   border: none;
   border-radius: 10px;
   font-size: 0.875rem;
@@ -385,10 +385,10 @@ function submit() {
 
 .btn-secondary {
   padding: 0.7rem 1.5rem;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--c-surface);
+  border: 1px solid var(--c-border-hover);
   border-radius: 10px;
-  color: #a1a1aa;
+  color: var(--c-text-muted);
   font-size: 0.875rem;
   font-weight: 500;
   text-decoration: none;
@@ -397,8 +397,8 @@ function submit() {
 }
 
 .btn-secondary:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: white;
+  background: var(--c-input-border);
+  color: var(--c-text-white);
 }
 
 .spinner {
@@ -425,7 +425,7 @@ function submit() {
 }
 
 .image-upload-area {
-  border: 2px dashed rgba(255, 255, 255, 0.1);
+  border: 2px dashed var(--c-border-hover);
   border-radius: 14px;
   cursor: pointer;
   transition: all 0.2s;
@@ -443,12 +443,12 @@ function submit() {
   flex-direction: column;
   align-items: center;
   gap: 0.5rem;
-  color: #52525b;
+  color: var(--c-text-faint);
 }
 
 .upload-placeholder p {
   font-size: 0.875rem;
-  color: #a1a1aa;
+  color: var(--c-text-muted);
   margin: 0;
 }
 
@@ -479,7 +479,7 @@ function submit() {
   border-radius: 50%;
   border: none;
   background: rgba(239, 68, 68, 0.8);
-  color: white;
+  color: var(--c-text-white);
   font-size: 1.1rem;
   cursor: pointer;
   display: flex;
