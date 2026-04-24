@@ -8,6 +8,7 @@ use App\Models\Category;
 use App\Models\Product;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -64,7 +65,7 @@ class ProductController extends Controller
         $data = $request->validated();
 
         if ($request->hasFile('image')) {
-            $data['image'] = $request->file('image')->store('products', 'public');
+            $data['image'] = $this->compressAndStore($request->file('image'));
         }
 
         Product::create($data);
@@ -92,7 +93,7 @@ class ProductController extends Controller
             if ($product->image) {
                 Storage::disk('public')->delete($product->image);
             }
-            $data['image'] = $request->file('image')->store('products', 'public');
+            $data['image'] = $this->compressAndStore($request->file('image'));
         }
 
         $product->update($data);
@@ -112,5 +113,54 @@ class ProductController extends Controller
 
         return redirect()->route('products.index')
             ->with('success', 'Produk berhasil dihapus.');
+    }
+
+    /**
+     * Compress uploaded image to WebP format, ensuring file size ≤ 500KB.
+     * Iteratively reduces quality until target size is met.
+     */
+    private function compressAndStore(UploadedFile $file): string
+    {
+        $maxBytes = 500 * 1024; // 500KB
+        $image = match ($file->getMimeType()) {
+            'image/png' => imagecreatefrompng($file->getPathname()),
+            'image/gif' => imagecreatefromgif($file->getPathname()),
+            'image/webp' => imagecreatefromwebp($file->getPathname()),
+            default => imagecreatefromjpeg($file->getPathname()),
+        };
+
+        // Resize if larger than 800px on any side
+        $width = imagesx($image);
+        $height = imagesy($image);
+        $maxDim = 800;
+
+        if ($width > $maxDim || $height > $maxDim) {
+            $ratio = min($maxDim / $width, $maxDim / $height);
+            $newW = (int) ($width * $ratio);
+            $newH = (int) ($height * $ratio);
+            $resized = imagecreatetruecolor($newW, $newH);
+            // Preserve transparency
+            imagealphablending($resized, false);
+            imagesavealpha($resized, true);
+            imagecopyresampled($resized, $image, 0, 0, 0, 0, $newW, $newH, $width, $height);
+            imagedestroy($image);
+            $image = $resized;
+        }
+
+        // Iteratively lower quality until ≤ 500KB
+        $quality = 85;
+        do {
+            ob_start();
+            imagewebp($image, null, $quality);
+            $data = ob_get_clean();
+            $quality -= 10;
+        } while (strlen($data) > $maxBytes && $quality > 10);
+
+        imagedestroy($image);
+
+        $filename = 'products/'.uniqid('img_').'.webp';
+        Storage::disk('public')->put($filename, $data);
+
+        return $filename;
     }
 }
