@@ -92,9 +92,11 @@
           <h3 class="section-label">Stok</h3>
           <div class="form-grid">
             <div class="form-group">
-              <label for="stock">Stok Saat Ini <span class="required">*</span></label>
-              <input id="stock" v-model.number="form.stock" type="number" min="0" :class="{ error: form.errors.stock }" />
-              <span v-if="form.errors.stock" class="error-text">{{ form.errors.stock }}</span>
+              <label for="stock">Stok Saat Ini</label>
+              <div class="stock-display">
+                <span :class="['stock-badge', product.stock <= 0 ? 'out' : product.stock <= product.min_stock ? 'low' : 'ok']">{{ product.stock }}</span>
+                <span class="stock-hint">Gunakan fitur "Adjust Stok" di halaman Produk untuk mengubah stok</span>
+              </div>
             </div>
             <div class="form-group">
               <label for="min_stock">Minimum Stok <span class="required">*</span></label>
@@ -137,7 +139,6 @@ const form = useForm({
   price_offline: parseFloat(props.product.price_offline),
   price_shopee: parseFloat(props.product.price_shopee),
   cost_price: parseFloat(props.product.cost_price),
-  stock: props.product.stock,
   min_stock: props.product.min_stock,
 });
 
@@ -474,4 +475,11 @@ function submit() {
 .remove-image:hover {
   background: #ef4444;
 }
+
+.stock-display { display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem 0; }
+.stock-badge { padding: 0.3rem 0.75rem; border-radius: 8px; font-weight: 700; font-size: 0.9rem; }
+.stock-badge.ok { background: rgba(34,197,94,0.12); color: #22c55e; }
+.stock-badge.low { background: rgba(245,158,11,0.12); color: #f59e0b; }
+.stock-badge.out { background: rgba(239,68,68,0.12); color: #ef4444; }
+.stock-hint { font-size: 0.72rem; color: var(--c-text-faint); font-style: italic; }
 </style>

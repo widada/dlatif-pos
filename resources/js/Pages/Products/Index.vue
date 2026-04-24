@@ -81,12 +81,15 @@
                 <td class="text-right">{{ formatCurrency(product.price_shopee) }}</td>
                 <td class="text-right text-muted">{{ formatCurrency(product.cost_price) }}</td>
                 <td class="text-center">
-                  <span :class="['stock-badge', stockClass(product)]">
+                  <span :class="['stock-badge clickable', stockClass(product)]" @click="openHistory(product)" title="Lihat riwayat stok">
                     {{ product.stock }}
                   </span>
                 </td>
                 <td class="text-center">
                   <div class="action-buttons">
+                    <button class="btn-icon adjust" title="Adjust Stok" @click="openAdjust(product)">
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path fill-rule="evenodd" d="M11.47 7.72a.75.75 0 011.06 0l7.5 7.5a.75.75 0 11-1.06 1.06L12 9.31l-6.97 6.97a.75.75 0 01-1.06-1.06l7.5-7.5z" clip-rule="evenodd" /></svg>
+                    </button>
                     <Link :href="`/products/${product.id}/edit`" class="btn-icon edit" title="Edit">
                       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M21.731 2.269a2.625 2.625 0 00-3.712 0l-1.157 1.157 3.712 3.712 1.157-1.157a2.625 2.625 0 000-3.712zM19.513 8.199l-3.712-3.712-8.4 8.4a5.25 5.25 0 00-1.32 2.214l-.8 2.685a.75.75 0 00.933.933l2.685-.8a5.25 5.25 0 002.214-1.32l8.4-8.4z" /><path d="M5.25 5.25a3 3 0 00-3 3v10.5a3 3 0 003 3h10.5a3 3 0 003-3V13.5a.75.75 0 00-1.5 0v5.25a1.5 1.5 0 01-1.5 1.5H5.25a1.5 1.5 0 01-1.5-1.5V8.25a1.5 1.5 0 011.5-1.5h5.25a.75.75 0 000-1.5H5.25z" /></svg>
                     </Link>
@@ -134,11 +137,91 @@
         </div>
       </Transition>
     </Teleport>
+
+    <!-- Stock Adjustment Modal -->
+    <Teleport to="body">
+      <Transition name="modal">
+        <div v-if="showAdjustModal" class="modal-overlay" @click.self="showAdjustModal = false">
+          <div class="modal-content adjust-modal">
+            <h3>Adjust Stok</h3>
+            <p class="adjust-product-name">{{ adjustingProduct?.name }}</p>
+            <p class="adjust-current">Stok saat ini: <strong>{{ adjustingProduct?.stock }}</strong></p>
+            <div class="adjust-form">
+              <div class="adjust-type">
+                <button type="button" :class="['type-btn', { active: adjustForm.type === 'adjustment_in' }]" @click="adjustForm.type = 'adjustment_in'">+ Tambah</button>
+                <button type="button" :class="['type-btn out', { active: adjustForm.type === 'adjustment_out' }]" @click="adjustForm.type = 'adjustment_out'">− Kurangi</button>
+              </div>
+              <div class="adjust-field">
+                <label>Jumlah <span class="req">*</span></label>
+                <input v-model.number="adjustForm.quantity" type="number" min="1" placeholder="0" />
+                <span v-if="adjustForm.errors.quantity" class="error-text">{{ adjustForm.errors.quantity }}</span>
+              </div>
+              <div class="adjust-field">
+                <label>Alasan <span class="req">*</span></label>
+                <textarea v-model="adjustForm.reason" rows="2" placeholder="Min 10 karakter (contoh: Barang rusak, stock opname, dll)"></textarea>
+                <span v-if="adjustForm.errors.reason" class="error-text">{{ adjustForm.errors.reason }}</span>
+              </div>
+              <div v-if="adjustForm.quantity > 0" class="adjust-preview">
+                <span>Stok setelah: </span>
+                <strong :class="previewStock < 0 ? 'text-danger' : ''">{{ previewStock }}</strong>
+              </div>
+            </div>
+            <div class="modal-actions">
+              <button class="btn-secondary" @click="showAdjustModal = false">Batal</button>
+              <button class="btn-primary" @click="submitAdjust" :disabled="adjustForm.processing || !adjustForm.quantity || !adjustForm.reason">Simpan</button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
+    <!-- Stock History Modal -->
+    <Teleport to="body">
+      <Transition name="modal">
+        <div v-if="showHistoryModal" class="modal-overlay" @click.self="showHistoryModal = false">
+          <div class="modal-content history-modal">
+            <h3>Riwayat Stok</h3>
+            <p class="adjust-product-name">{{ historyProduct?.name }}</p>
+            <p class="adjust-current">Stok saat ini: <strong>{{ historyProduct?.stock }}</strong></p>
+            <div v-if="historyLoading" class="chart-empty">Memuat...</div>
+            <div v-else-if="historyMovements.length" class="history-table-wrap">
+              <table class="history-table">
+                <thead>
+                  <tr>
+                    <th>Tanggal</th>
+                    <th>Tipe</th>
+                    <th class="text-center">Qty</th>
+                    <th class="text-center">Stok</th>
+                    <th>Referensi</th>
+                    <th>Catatan</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="m in historyMovements" :key="m.id">
+                    <td class="text-nowrap">{{ fmtDate(m.created_at) }}</td>
+                    <td><span :class="['type-badge', m.type]">{{ typeLabel(m.type) }}</span></td>
+                    <td class="text-center" :class="m.quantity > 0 ? 'text-green' : 'text-red'">{{ m.quantity > 0 ? '+' : '' }}{{ m.quantity }}</td>
+                    <td class="text-center text-muted">{{ m.stock_before }} → {{ m.stock_after }}</td>
+                    <td class="text-muted">{{ m.reference || '—' }}</td>
+                    <td class="text-muted text-truncate">{{ m.notes || '—' }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div v-else class="chart-empty">Belum ada riwayat</div>
+            <div class="modal-actions">
+              <Link v-if="historyHasMore" :href="`/products/${historyProduct?.id}/stock-movements`" class="btn-secondary">Lihat Semua</Link>
+              <button class="btn-secondary" @click="showHistoryModal = false">Tutup</button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
   </AppLayout>
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import AppLayout from '../../Layouts/AppLayout.vue';
 
@@ -154,8 +237,16 @@ const sortBy = ref(props.filters?.sort_by || 'name');
 const sortDir = ref(props.filters?.sort_dir || 'asc');
 const showDeleteModal = ref(false);
 const deletingProduct = ref(null);
+const showAdjustModal = ref(false);
+const adjustingProduct = ref(null);
+const showHistoryModal = ref(false);
+const historyProduct = ref(null);
+const historyMovements = ref([]);
+const historyHasMore = ref(false);
+const historyLoading = ref(false);
 
 const deleteForm = useForm({});
+const adjustForm = useForm({ type: 'adjustment_in', quantity: null, reason: '' });
 
 let searchTimeout;
 function debouncedSearch() {
@@ -218,6 +309,52 @@ function deleteProduct() {
       deletingProduct.value = null;
     },
   });
+}
+
+function openAdjust(product) {
+  adjustingProduct.value = product;
+  adjustForm.reset();
+  adjustForm.type = 'adjustment_in';
+  showAdjustModal.value = true;
+}
+
+const previewStock = computed(() => {
+  if (!adjustingProduct.value || !adjustForm.quantity) return adjustingProduct.value?.stock || 0;
+  return adjustForm.type === 'adjustment_in'
+    ? adjustingProduct.value.stock + adjustForm.quantity
+    : adjustingProduct.value.stock - adjustForm.quantity;
+});
+
+function submitAdjust() {
+  adjustForm.post(`/products/${adjustingProduct.value.id}/adjust-stock`, {
+    preserveScroll: true,
+    onSuccess: () => {
+      showAdjustModal.value = false;
+      adjustingProduct.value = null;
+    },
+  });
+}
+
+async function openHistory(product) {
+  historyProduct.value = product;
+  historyMovements.value = [];
+  historyHasMore.value = false;
+  historyLoading.value = true;
+  showHistoryModal.value = true;
+  try {
+    const res = await fetch(`/api/products/${product.id}/stock-movements`, { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } });
+    const data = await res.json();
+    historyMovements.value = data.movements;
+    historyHasMore.value = data.hasMore;
+  } catch (e) { console.error(e); }
+  historyLoading.value = false;
+}
+
+function fmtDate(d) { return new Date(d).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }); }
+
+function typeLabel(type) {
+  const map = { sale: 'Penjualan', purchase: 'Pembelian', adjustment_in: 'Masuk', adjustment_out: 'Keluar' };
+  return map[type] || type;
 }
 </script>
 
@@ -288,6 +425,44 @@ function deleteProduct() {
 .modal-leave-active { transition: all 0.15s ease; }
 .modal-enter-from, .modal-leave-to { opacity: 0; }
 .modal-enter-from .modal-content { transform: scale(0.95); }
+.btn-icon.adjust { background: rgba(20,184,166,0.1); color: #14b8a6; }
+.btn-icon.adjust:hover { background: rgba(20,184,166,0.2); }
+.adjust-modal { text-align: left; max-width: 420px; }
+.adjust-modal h3 { text-align: center; }
+.adjust-product-name { text-align: center; font-weight: 600; color: var(--c-text); font-size: 0.95rem; margin: 0 0 0.25rem; }
+.adjust-current { text-align: center; font-size: 0.8rem; color: var(--c-text-muted); margin: 0 0 1rem; }
+.adjust-form { display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 1.25rem; }
+.adjust-type { display: flex; gap: 0.5rem; }
+.type-btn { flex: 1; padding: 0.5rem; border: 1px solid var(--c-border); border-radius: 8px; background: var(--c-surface); color: var(--c-text-muted); font-size: 0.82rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+.type-btn.active { border-color: rgba(34,197,94,0.5); background: rgba(34,197,94,0.1); color: #22c55e; }
+.type-btn.out.active { border-color: rgba(239,68,68,0.5); background: rgba(239,68,68,0.1); color: #ef4444; }
+.adjust-field { display: flex; flex-direction: column; gap: 0.2rem; }
+.adjust-field label { font-size: 0.78rem; font-weight: 600; color: var(--c-text-muted); }
+.adjust-field input, .adjust-field textarea { background: var(--c-input-bg); border: 1px solid var(--c-input-border); border-radius: 8px; padding: 0.5rem 0.75rem; color: var(--c-text); font-size: 0.85rem; outline: none; font-family: inherit; }
+.adjust-field input:focus, .adjust-field textarea:focus { border-color: rgba(168,85,247,0.4); }
+.req { color: var(--c-danger); }
+.error-text { color: var(--c-danger); font-size: 0.75rem; }
+.adjust-preview { padding: 0.5rem 0.75rem; background: var(--c-surface); border-radius: 8px; font-size: 0.82rem; color: var(--c-text-muted); }
+.adjust-preview strong { color: var(--c-text); }
+.text-danger { color: #ef4444 !important; }
+.stock-badge.clickable { cursor: pointer; transition: all 0.15s; }
+.stock-badge.clickable:hover { transform: scale(1.1); box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+.history-modal { text-align: left; max-width: 700px; }
+.history-modal h3 { text-align: center; }
+.history-table-wrap { max-height: 350px; overflow-y: auto; border: 1px solid var(--c-border); border-radius: 8px; margin-bottom: 0.5rem; }
+.history-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+.history-table th { background: var(--c-surface); padding: 0.45rem 0.6rem; font-weight: 600; text-transform: uppercase; font-size: 0.65rem; letter-spacing: 0.04em; color: var(--c-text-dim); text-align: left; position: sticky; top: 0; z-index: 1; }
+.history-table td { padding: 0.4rem 0.6rem; border-top: 1px solid var(--c-border); color: var(--c-text); }
+.text-nowrap { white-space: nowrap; }
+.text-truncate { max-width: 120px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.text-green { color: #22c55e; font-weight: 600; }
+.text-red { color: #ef4444; font-weight: 600; }
+.chart-empty { text-align: center; padding: 1.5rem; color: var(--c-text-faint); font-size: 0.85rem; }
+.type-badge { padding: 0.15rem 0.45rem; border-radius: 4px; font-size: 0.7rem; font-weight: 600; white-space: nowrap; }
+.type-badge.sale { background: rgba(59,130,246,0.1); color: #60a5fa; }
+.type-badge.purchase { background: rgba(34,197,94,0.1); color: #22c55e; }
+.type-badge.adjustment_in { background: rgba(20,184,166,0.1); color: #14b8a6; }
+.type-badge.adjustment_out { background: rgba(245,158,11,0.1); color: #f59e0b; }
 @media (max-width: 768px) { .data-table th:nth-child(5), .data-table td:nth-child(5), .data-table th:nth-child(6), .data-table td:nth-child(6) { display: none; } }
 </style>
 

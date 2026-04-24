@@ -16,27 +16,47 @@
         <div class="period-label">{{ dateRange.start }} s/d {{ dateRange.end }}</div>
       </div>
 
+      <!-- Cash Flow Banner -->
+      <div class="cashflow-card" :class="overview.grossProfit >= 0 ? 'positive' : 'negative-cf'">
+        <div class="cf-left">
+          <span class="cf-icon">💸</span>
+          <div class="cf-info">
+            <span class="cf-label">Cash Flow</span>
+            <span class="cf-sub">Penjualan − Pembelian</span>
+          </div>
+        </div>
+        <span class="cf-value" :class="{ negative: overview.grossProfit < 0 }">{{ fmt(overview.grossProfit) }}</span>
+      </div>
+
       <!-- Overview Cards -->
       <div class="overview-grid">
         <div class="ov-card">
           <div class="ov-icon green">💰</div>
           <div class="ov-info">
-            <span class="ov-label">Total Pendapatan</span>
+            <span class="ov-label">Total Penjualan</span>
             <span class="ov-value">{{ fmt(overview.totalRevenue) }}</span>
           </div>
         </div>
         <div class="ov-card">
-          <div class="ov-icon purple">📦</div>
+          <div class="ov-icon orange">📦</div>
           <div class="ov-info">
-            <span class="ov-label">Total Transaksi</span>
-            <span class="ov-value">{{ overview.totalTransactions }}</span>
+            <span class="ov-label">Total Pembelian</span>
+            <span class="ov-value">{{ fmt(overview.totalPurchases) }}</span>
           </div>
         </div>
         <div class="ov-card">
-          <div class="ov-icon blue">📊</div>
+          <div class="ov-icon" :class="overview.netProfit >= 0 ? 'teal' : 'red'">💹</div>
           <div class="ov-info">
-            <span class="ov-label">Rata-rata / Transaksi</span>
-            <span class="ov-value">{{ fmt(overview.avgTransaction) }}</span>
+            <span class="ov-label">Laba Bersih Penjualan</span>
+            <span class="ov-value" :class="{ negative: overview.netProfit < 0 }">{{ fmt(overview.netProfit) }}</span>
+            <span class="ov-sub">HPP: {{ fmt(overview.totalCogs) }}</span>
+          </div>
+        </div>
+        <div class="ov-card">
+          <div class="ov-icon purple">🧾</div>
+          <div class="ov-info">
+            <span class="ov-label">Total Transaksi</span>
+            <span class="ov-value">{{ overview.totalTransactions }}</span>
           </div>
         </div>
         <div class="ov-card">
@@ -44,6 +64,13 @@
           <div class="ov-info">
             <span class="ov-label">Total Diskon</span>
             <span class="ov-value">{{ fmt(overview.totalDiscount) }}</span>
+          </div>
+        </div>
+        <div class="ov-card">
+          <div class="ov-icon blue">📊</div>
+          <div class="ov-info">
+            <span class="ov-label">Rata-rata / Transaksi</span>
+            <span class="ov-value">{{ fmt(overview.avgTransaction) }}</span>
           </div>
         </div>
       </div>
@@ -137,6 +164,22 @@
           </div>
           <div v-else class="chart-empty">Belum ada data</div>
         </div>
+
+        <!-- Top Suppliers -->
+        <div class="chart-card">
+          <h3>🏭 Top Supplier</h3>
+          <div v-if="topSuppliers.length" class="top-list">
+            <div v-for="(sup, i) in topSuppliers" :key="sup.supplier_id" class="top-item">
+              <span class="top-rank" :class="{ gold: i===0, silver: i===1, bronze: i===2 }">{{ i + 1 }}</span>
+              <div class="top-info">
+                <span class="top-name">{{ sup.supplier?.name || 'Unknown' }}</span>
+                <span class="top-qty">{{ sup.count }} pembelian</span>
+              </div>
+              <span class="top-rev">{{ fmt(sup.total_spend) }}</span>
+            </div>
+          </div>
+          <div v-else class="chart-empty">Belum ada data</div>
+        </div>
       </div>
     </div>
   </AppLayout>
@@ -153,6 +196,7 @@ const props = defineProps({
   byChannel: Array,
   byPayment: Array,
   topProducts: Array,
+  topSuppliers: Array,
   recentTransactions: Array,
   period: String,
   dateRange: Object,
@@ -235,18 +279,35 @@ function paymentPct(rev) { return (Number(rev) / totalPaymentRevenue.value * 100
 .date-sep { color: var(--c-text-faint); font-size: 0.8rem; }
 .period-label { margin-left: auto; font-size: 0.75rem; color: var(--c-text-faint); }
 
+/* Cash Flow Banner */
+.cashflow-card { display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.5rem; border-radius: 14px; margin-bottom: 0.75rem; transition: all 0.2s; }
+.cashflow-card.positive { background: linear-gradient(135deg, rgba(34,197,94,0.08), rgba(20,184,166,0.08)); border: 1px solid rgba(34,197,94,0.2); }
+.cashflow-card.negative-cf { background: linear-gradient(135deg, rgba(239,68,68,0.08), rgba(245,158,11,0.08)); border: 1px solid rgba(239,68,68,0.2); }
+.cf-left { display: flex; align-items: center; gap: 0.75rem; }
+.cf-icon { font-size: 1.5rem; }
+.cf-info { display: flex; flex-direction: column; }
+.cf-label { font-size: 0.85rem; font-weight: 700; color: var(--c-text); }
+.cf-sub { font-size: 0.7rem; color: var(--c-text-faint); }
+.cf-value { font-size: 1.4rem; font-weight: 800; color: var(--c-text); }
+.cf-value.negative { color: #ef4444; }
+
 /* Overview */
-.overview-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.75rem; margin-bottom: 1rem; }
+.overview-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; margin-bottom: 1rem; }
 .ov-card { background: var(--c-card); border: 1px solid var(--c-border); border-radius: 14px; padding: 1rem; display: flex; align-items: center; gap: 0.75rem; transition: all 0.2s; }
 .ov-card:hover { border-color: var(--c-border-hover); transform: translateY(-1px); }
 .ov-icon { width: 42px; height: 42px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.25rem; flex-shrink: 0; }
 .ov-icon.green { background: rgba(34,197,94,0.12); }
+.ov-icon.orange { background: rgba(249,115,22,0.12); }
+.ov-icon.teal { background: rgba(20,184,166,0.12); }
+.ov-icon.red { background: rgba(239,68,68,0.12); }
 .ov-icon.purple { background: rgba(168,85,247,0.12); }
 .ov-icon.blue { background: rgba(59,130,246,0.12); }
 .ov-icon.amber { background: rgba(245,158,11,0.12); }
 .ov-info { display: flex; flex-direction: column; min-width: 0; }
 .ov-label { font-size: 0.7rem; color: var(--c-text-dim); text-transform: uppercase; letter-spacing: 0.04em; font-weight: 500; }
 .ov-value { font-size: 1.1rem; font-weight: 700; color: var(--c-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ov-value.negative { color: #ef4444; }
+.ov-sub { font-size: 0.68rem; color: var(--c-text-faint); }
 
 /* Charts */
 .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1rem; }

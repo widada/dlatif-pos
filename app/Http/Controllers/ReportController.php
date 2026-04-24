@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Purchase;
 use App\Models\Transaction;
 use App\Models\TransactionItem;
 use Illuminate\Http\Request;
@@ -21,11 +22,24 @@ class ReportController extends Controller
         $endDate = $dateRange['end'];
 
         // Overview stats
+        $totalRevenue = Transaction::whereBetween('date', [$startDate, $endDate])->sum('total');
+        $totalPurchases = Purchase::whereBetween('date', [$startDate, $endDate])->sum('total');
+        $totalDiscount = Transaction::whereBetween('date', [$startDate, $endDate])->sum('discount');
+
+        // COGS = sum(cost_price × quantity) dari item yang terjual pada periode ini
+        $totalCogs = TransactionItem::join('transactions', 'transactions.id', '=', 'transaction_items.transaction_id')
+            ->whereBetween('transactions.date', [$startDate, $endDate])
+            ->sum(DB::raw('transaction_items.cost_price * transaction_items.quantity'));
+
         $overview = [
-            'totalRevenue' => Transaction::whereBetween('date', [$startDate, $endDate])->sum('total'),
+            'totalRevenue' => $totalRevenue,
+            'totalPurchases' => $totalPurchases,
+            'grossProfit' => $totalRevenue - $totalPurchases,
+            'netProfit' => $totalRevenue - $totalCogs - $totalDiscount,
+            'totalCogs' => $totalCogs,
             'totalTransactions' => Transaction::whereBetween('date', [$startDate, $endDate])->count(),
             'avgTransaction' => Transaction::whereBetween('date', [$startDate, $endDate])->avg('total') ?? 0,
-            'totalDiscount' => Transaction::whereBetween('date', [$startDate, $endDate])->sum('discount'),
+            'totalDiscount' => $totalDiscount,
         ];
 
         // Daily revenue chart
@@ -60,6 +74,15 @@ class ReportController extends Controller
             ->limit(10)
             ->get();
 
+        // Top suppliers
+        $topSuppliers = Purchase::with('supplier')
+            ->whereBetween('date', [$startDate, $endDate])
+            ->select('supplier_id', DB::raw('SUM(total) as total_spend'), DB::raw('COUNT(*) as count'))
+            ->groupBy('supplier_id')
+            ->orderByDesc('total_spend')
+            ->limit(5)
+            ->get();
+
         // Recent transactions
         $recentTransactions = Transaction::with('items')
             ->whereBetween('date', [$startDate, $endDate])
@@ -73,6 +96,7 @@ class ReportController extends Controller
             'byChannel' => $byChannel,
             'byPayment' => $byPayment,
             'topProducts' => $topProducts,
+            'topSuppliers' => $topSuppliers,
             'recentTransactions' => $recentTransactions,
             'period' => $period,
             'dateRange' => [

@@ -22,6 +22,7 @@ class StockMovement extends Model
         'quantity',
         'stock_before',
         'stock_after',
+        'reference',
         'notes',
     ];
 
