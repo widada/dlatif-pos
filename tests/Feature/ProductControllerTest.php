@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Category;
 use App\Models\Product;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -14,11 +15,12 @@ class ProductControllerTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        $this->actingAs(User::factory()->create());
         Category::factory()->create(['name' => 'Skincare']);
         Category::factory()->create(['name' => 'Makeup']);
     }
 
-    public function testProductIndexPageIsDisplayed(): void
+    public function test_product_index_page_is_displayed(): void
     {
         Product::factory()->create(['name' => 'Test Product', 'category' => 'Skincare']);
 
@@ -32,7 +34,7 @@ class ProductControllerTest extends TestCase
         );
     }
 
-    public function testProductIndexCanSearchByName(): void
+    public function test_product_index_can_search_by_name(): void
     {
         Product::factory()->create(['name' => 'Maybelline Foundation']);
         Product::factory()->create(['name' => 'Wardah Lip Cream']);
@@ -47,7 +49,7 @@ class ProductControllerTest extends TestCase
         );
     }
 
-    public function testProductIndexCanFilterByCategory(): void
+    public function test_product_index_can_filter_by_category(): void
     {
         Product::factory()->create(['name' => 'Product A', 'category' => 'Skincare']);
         Product::factory()->create(['name' => 'Product B', 'category' => 'Makeup']);
@@ -60,7 +62,7 @@ class ProductControllerTest extends TestCase
         );
     }
 
-    public function testProductCreatePageIsDisplayed(): void
+    public function test_product_create_page_is_displayed(): void
     {
         $response = $this->get('/products/create');
 
@@ -71,7 +73,7 @@ class ProductControllerTest extends TestCase
         );
     }
 
-    public function testProductCanBeCreated(): void
+    public function test_product_can_be_created(): void
     {
         $response = $this->post('/products', [
             'name' => 'New Product',
@@ -89,7 +91,7 @@ class ProductControllerTest extends TestCase
         $this->assertDatabaseHas('products', ['name' => 'New Product']);
     }
 
-    public function testProductCreationRequiresRequiredFields(): void
+    public function test_product_creation_requires_required_fields(): void
     {
         $response = $this->post('/products', []);
 
@@ -98,7 +100,7 @@ class ProductControllerTest extends TestCase
         ]);
     }
 
-    public function testProductCreationRejectsUniqueBarcode(): void
+    public function test_product_creation_rejects_unique_barcode(): void
     {
         Product::factory()->create(['barcode' => '1234567890123']);
 
@@ -116,7 +118,7 @@ class ProductControllerTest extends TestCase
         $response->assertSessionHasErrors('barcode');
     }
 
-    public function testProductEditPageIsDisplayed(): void
+    public function test_product_edit_page_is_displayed(): void
     {
         $product = Product::factory()->create();
 
@@ -130,7 +132,7 @@ class ProductControllerTest extends TestCase
         );
     }
 
-    public function testProductCanBeUpdated(): void
+    public function test_product_can_be_updated(): void
     {
         $product = Product::factory()->create();
 
@@ -153,7 +155,7 @@ class ProductControllerTest extends TestCase
         ]);
     }
 
-    public function testProductUpdateAllowsSameBarcodeForSameProduct(): void
+    public function test_product_update_allows_same_barcode_for_same_product(): void
     {
         $product = Product::factory()->create(['barcode' => '9999999999999']);
 
@@ -172,7 +174,7 @@ class ProductControllerTest extends TestCase
         $response->assertSessionHas('success');
     }
 
-    public function testProductCanBeDeleted(): void
+    public function test_product_can_be_deleted(): void
     {
         $product = Product::factory()->create();
 

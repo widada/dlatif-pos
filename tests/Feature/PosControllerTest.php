@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Category;
 use App\Models\Product;
 use App\Models\Transaction;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -15,10 +16,11 @@ class PosControllerTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        $this->actingAs(User::factory()->create());
         Category::factory()->create(['name' => 'Skincare']);
     }
 
-    public function testPosPageIsDisplayed(): void
+    public function test_pos_page_is_displayed(): void
     {
         $response = $this->get('/pos');
 
@@ -30,7 +32,7 @@ class PosControllerTest extends TestCase
         );
     }
 
-    public function testCheckoutCreatesTransaction(): void
+    public function test_checkout_creates_transaction(): void
     {
         $product = Product::factory()->create([
             'stock' => 10,
@@ -74,7 +76,7 @@ class PosControllerTest extends TestCase
         ]);
     }
 
-    public function testCheckoutWithDiscount(): void
+    public function test_checkout_with_discount(): void
     {
         $product = Product::factory()->create([
             'stock' => 5,
@@ -96,7 +98,7 @@ class PosControllerTest extends TestCase
         ]);
     }
 
-    public function testCheckoutWithShopeeChannel(): void
+    public function test_checkout_with_shopee_channel(): void
     {
         $product = Product::factory()->create([
             'stock' => 5,
@@ -117,7 +119,7 @@ class PosControllerTest extends TestCase
         ]);
     }
 
-    public function testCheckoutValidatesEmptyCart(): void
+    public function test_checkout_validates_empty_cart(): void
     {
         $response = $this->post('/pos/checkout', [
             'channel' => 'Offline',
@@ -129,7 +131,7 @@ class PosControllerTest extends TestCase
         $response->assertSessionHasErrors('items');
     }
 
-    public function testCheckoutValidatesInvalidChannel(): void
+    public function test_checkout_validates_invalid_channel(): void
     {
         $product = Product::factory()->create(['stock' => 5]);
 
@@ -143,7 +145,7 @@ class PosControllerTest extends TestCase
         $response->assertSessionHasErrors('channel');
     }
 
-    public function testReceiptPageIsDisplayed(): void
+    public function test_receipt_page_is_displayed(): void
     {
         $product = Product::factory()->create(['stock' => 10, 'price_offline' => 50000, 'cost_price' => 30000]);
         $this->post('/pos/checkout', [
