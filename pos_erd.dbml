@@ -1,0 +1,119 @@
+// POS System - Toko Kosmetik & Aksesoris
+// Database Schema for dbdiagram.io
+
+Table products {
+  id varchar [pk, note: 'Unique identifier (UUID)']
+  name varchar [not null, note: 'Nama produk']
+  category varchar [not null, note: 'Kategori: Skincare, Makeup, Haircare, Aksesoris']
+  barcode varchar [unique, note: 'Barcode number dari kemasan (opsional)']
+  price_offline decimal(10,2) [not null, note: 'Harga jual di toko offline']
+  price_shopee decimal(10,2) [not null, note: 'Harga jual di Shopee']
+  cost_price decimal(10,2) [not null, note: 'Harga Pokok Penjualan (HPP)']
+  stock integer [not null, default: 0, note: 'Jumlah stok tersedia']
+  min_stock integer [not null, default: 5, note: 'Minimum stok untuk alert']
+  created_at timestamp [not null, default: `now()`]
+  updated_at timestamp [not null, default: `now()`]
+  
+  indexes {
+    barcode
+    category
+    name
+  }
+  
+  note: 'Master data produk dengan multi-channel pricing'
+}
+
+Table transactions {
+  id varchar [pk, note: 'Unique identifier (UUID)']
+  transaction_number varchar [unique, not null, note: 'Nomor transaksi (auto-generated)']
+  date timestamp [not null, default: `now()`, note: 'Tanggal & waktu transaksi']
+  channel varchar [not null, note: 'Channel penjualan: Offline atau Shopee']
+  subtotal decimal(10,2) [not null, note: 'Total sebelum diskon']
+  discount decimal(10,2) [default: 0, note: 'Jumlah diskon']
+  total decimal(10,2) [not null, note: 'Total setelah diskon']
+  payment_method varchar [not null, note: 'Metode pembayaran: Cash, QRIS, Transfer']
+  payment_amount decimal(10,2) [note: 'Jumlah uang yang dibayarkan (untuk Cash)']
+  change_amount decimal(10,2) [note: 'Kembalian (untuk Cash)']
+  notes text [note: 'Catatan tambahan (opsional)']
+  created_at timestamp [not null, default: `now()`]
+  
+  indexes {
+    channel
+    date
+    transaction_number
+  }
+  
+  note: 'Header transaksi penjualan'
+}
+
+Table transaction_items {
+  id varchar [pk, note: 'Unique identifier']
+  transaction_id varchar [not null, ref: > transactions.id, note: 'FK ke transactions']
+  product_id varchar [not null, ref: > products.id, note: 'FK ke products']
+  product_name varchar [not null, note: 'Nama produk snapshot (saat transaksi)']
+  quantity integer [not null, note: 'Jumlah item']
+  price decimal(10,2) [not null, note: 'Harga jual per unit (snapshot sesuai channel)']
+  cost_price decimal(10,2) [not null, note: 'HPP per unit (snapshot)']
+  subtotal decimal(10,2) [not null, note: 'Total (quantity × price)']
+  
+  indexes {
+    transaction_id
+    product_id
+  }
+  
+  note: 'Detail item dalam setiap transaksi'
+}
+
+Table categories {
+  id varchar [pk, note: 'Unique identifier']
+  name varchar [unique, not null, note: 'Nama kategori']
+  description text [note: 'Deskripsi kategori']
+  created_at timestamp [not null, default: `now()`]
+  
+  note: 'Master kategori produk (customizable)'
+}
+
+Table stock_movements {
+  id varchar [pk, note: 'Unique identifier']
+  product_id varchar [not null, ref: > products.id, note: 'FK ke products']
+  transaction_id varchar [ref: > transactions.id, note: 'FK ke transactions (null jika manual adjustment)']
+  type varchar [not null, note: 'Tipe: sale, purchase, adjustment']
+  quantity integer [not null, note: 'Perubahan stok (+/-)']
+  stock_before integer [not null, note: 'Stok sebelum perubahan']
+  stock_after integer [not null, note: 'Stok setelah perubahan']
+  notes text [note: 'Alasan adjustment (jika manual)']
+  created_at timestamp [not null, default: `now()`]
+  
+  indexes {
+    product_id
+    transaction_id
+    type
+    created_at
+  }
+  
+  note: 'Tracking pergerakan stok (audit trail)'
+}
+
+// Relationships
+Ref: transaction_items.transaction_id > transactions.id [delete: cascade]
+Ref: transaction_items.product_id > products.id [delete: restrict]
+Ref: stock_movements.product_id > products.id [delete: cascade]
+Ref: stock_movements.transaction_id > transactions.id [delete: set null]
+
+// Enums (for documentation)
+Enum channel_type {
+  Offline
+  Shopee
+}
+
+Enum payment_method_type {
+  Cash
+  QRIS
+  Transfer
+}
+
+Enum stock_movement_type {
+  sale
+  purchase
+  adjustment
+}
