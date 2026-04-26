@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Customer;
+use App\Models\PointLog;
 use App\Models\Purchase;
 use App\Models\Transaction;
 use App\Models\TransactionItem;
@@ -90,6 +92,34 @@ class ReportController extends Controller
             ->limit(5)
             ->get();
 
+        // Member analytics
+        $topCustomers = Customer::orderByDesc('total_spent')->limit(10)
+            ->get(['id', 'name', 'phone', 'total_spent', 'total_transactions', 'points']);
+
+        $newMembers = Customer::whereBetween('created_at', [$startDate, $endDate])->count();
+        $totalActiveMembers = Customer::whereNotNull('last_purchase_at')->count();
+
+        $pointsEarned = PointLog::where('type', 'earn')
+            ->whereBetween('created_at', [$startDate, $endDate])
+            ->sum('points');
+        $pointsRedeemed = PointLog::where('type', 'redeem')
+            ->whereBetween('created_at', [$startDate, $endDate])
+            ->sum(DB::raw('ABS(points)'));
+        $outstandingPoints = Customer::sum('points');
+
+        $totalMemberDiscount = Transaction::whereBetween('date', [$startDate, $endDate])
+            ->sum(DB::raw('member_discount + birthday_discount + point_discount'));
+
+        $memberReport = [
+            'topCustomers' => $topCustomers,
+            'newMembers' => $newMembers,
+            'totalActiveMembers' => $totalActiveMembers,
+            'pointsEarned' => $pointsEarned,
+            'pointsRedeemed' => $pointsRedeemed,
+            'outstandingPoints' => $outstandingPoints,
+            'totalMemberDiscount' => $totalMemberDiscount,
+        ];
+
         return Inertia::render('Reports/Index', [
             'overview' => $overview,
             'dailyRevenue' => $dailyRevenue,
@@ -98,6 +128,7 @@ class ReportController extends Controller
             'topProducts' => $topProducts,
             'topSuppliers' => $topSuppliers,
             'recentTransactions' => $recentTransactions,
+            'memberReport' => $memberReport,
             'period' => $period,
             'dateRange' => [
                 'start' => $startDate->format('Y-m-d'),

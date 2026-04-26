@@ -181,6 +181,29 @@
           <div v-else class="chart-empty">Belum ada data</div>
         </div>
       </div>
+
+      <!-- Member Report -->
+      <div class="member-report" v-if="memberReport">
+        <h2>👥 Member & Poin</h2>
+        <div class="member-stats">
+          <div class="ms-card"><div class="ms-val">{{ memberReport.newMembers }}</div><div class="ms-lbl">Member Baru</div></div>
+          <div class="ms-card"><div class="ms-val">{{ memberReport.totalActiveMembers }}</div><div class="ms-lbl">Member Aktif</div></div>
+          <div class="ms-card"><div class="ms-val">{{ memberReport.pointsEarned }}</div><div class="ms-lbl">Poin Diberikan</div></div>
+          <div class="ms-card"><div class="ms-val">{{ memberReport.pointsRedeemed }}</div><div class="ms-lbl">Poin Dipakai</div></div>
+          <div class="ms-card"><div class="ms-val">{{ memberReport.outstandingPoints }}</div><div class="ms-lbl">Outstanding Poin</div></div>
+          <div class="ms-card"><div class="ms-val">{{ fmt(memberReport.totalMemberDiscount) }}</div><div class="ms-lbl">Total Diskon Member</div></div>
+        </div>
+        <div class="chart-card" v-if="memberReport.topCustomers?.length">
+          <h3>🏆 Top Customer</h3>
+          <div class="top-list">
+            <div v-for="(c,i) in memberReport.topCustomers" :key="c.id" class="top-item">
+              <span class="top-rank" :class="{gold:i===0,silver:i===1,bronze:i===2}">{{ i+1 }}</span>
+              <div class="top-info"><span class="top-name">{{ c.name }}</span><span class="top-qty">{{ c.total_transactions }} trx · {{ c.points }} pts</span></div>
+              <span class="top-rev">{{ fmt(c.total_spent) }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </AppLayout>
 </template>
@@ -198,6 +221,7 @@ const props = defineProps({
   topProducts: Array,
   topSuppliers: Array,
   recentTransactions: Array,
+  memberReport: Object,
   period: String,
   dateRange: Object,
 });
@@ -372,10 +396,18 @@ function paymentPct(rev) { return (Number(rev) / totalPaymentRevenue.value * 100
 .ch-badge.shopee { background: rgba(249,115,22,0.12); color: #fb923c; }
 .recent-total { font-size: 0.85rem; font-weight: 700; color: var(--c-text); }
 
+/* Member Report */
+.member-report { margin-top: 1rem; }
+.member-report h2 { font-size: 1.05rem; font-weight: 700; color: var(--c-text-white); margin: 0 0 .75rem; }
+.member-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: .6rem; margin-bottom: .75rem; }
+.ms-card { background: var(--c-card); border: 1px solid var(--c-border); border-radius: 12px; padding: .75rem .9rem; text-align: center; }
+.ms-val { font-size: 1.15rem; font-weight: 800; color: var(--c-text-white); }
+.ms-lbl { font-size: .68rem; color: var(--c-text-dim); margin-top: .15rem; text-transform: uppercase; letter-spacing: .03em; }
+
 @media (max-width: 768px) {
   .charts-grid, .bottom-grid { grid-template-columns: 1fr; }
   .chart-card.wide { grid-column: 1; }
-  .overview-grid { grid-template-columns: repeat(2, 1fr); }
+  .overview-grid, .member-stats { grid-template-columns: repeat(2, 1fr); }
   .period-btns { flex-wrap: wrap; }
 }
 </style>

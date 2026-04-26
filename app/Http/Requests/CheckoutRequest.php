@@ -25,6 +25,11 @@ class CheckoutRequest extends FormRequest
             'payment_method' => ['required', 'string', 'in:Cash,QRIS,Transfer'],
             'payment_amount' => ['nullable', 'numeric', 'min:0'],
             'notes' => ['nullable', 'string', 'max:500'],
+            // Membership fields
+            'customer_phone' => ['nullable', 'string'],
+            'customer_name' => ['nullable', 'required_with:customer_phone', 'string', 'min:2'],
+            'customer_birth_date' => ['nullable', 'date'],
+            'points_used' => ['nullable', 'integer', 'min:0'],
         ];
     }
 }

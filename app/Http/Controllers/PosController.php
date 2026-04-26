@@ -2,20 +2,26 @@
 
 namespace App\Http\Controllers;
 
+use App\Helpers\PhoneHelper;
 use App\Http\Requests\CheckoutRequest;
 use App\Models\Category;
 use App\Models\Product;
+use App\Models\Setting;
 use App\Models\StockMovement;
 use App\Models\Transaction;
 use App\Models\TransactionItem;
+use App\Services\MembershipService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class PosController extends Controller
 {
+    public function __construct(
+        private MembershipService $membershipService,
+    ) {}
+
     public function index(): Response
     {
         $products = Product::where('stock', '>', 0)
@@ -24,9 +30,24 @@ class PosController extends Controller
 
         $categories = Category::orderBy('name')->pluck('name');
 
+        // Pass membership settings to frontend
+        $memberSettings = [
+            'member_enabled' => Setting::getValue('member_enabled', true),
+            'member_discount_enabled' => Setting::getValue('member_discount_enabled', true),
+            'member_discount_percent' => Setting::getValue('member_discount_percent', 5),
+            'birthday_enabled' => Setting::getValue('birthday_enabled', true),
+            'birthday_discount_percent' => Setting::getValue('birthday_discount_percent', 20),
+            'point_earn_amount' => Setting::getValue('point_earn_amount', 10000),
+            'point_earn_value' => Setting::getValue('point_earn_value', 1),
+            'point_redeem_value' => Setting::getValue('point_redeem_value', 100),
+            'point_min_redeem' => Setting::getValue('point_min_redeem', 100),
+            'auto_register_on_phone' => Setting::getValue('auto_register_on_phone', true),
+        ];
+
         return Inertia::render('Pos/Index', [
             'products' => $products,
             'categories' => $categories,
+            'memberSettings' => $memberSettings,
         ]);
     }
 
@@ -38,6 +59,8 @@ class PosController extends Controller
             $channel = $validated['channel'];
             $discount = $validated['discount'] ?? 0;
             $paymentMethod = $validated['payment_method'];
+            $customerPhone = $validated['customer_phone'] ?? null;
+            $pointsUsed = $validated['points_used'] ?? 0;
 
             $subtotal = 0;
             $itemsData = [];
@@ -63,7 +86,45 @@ class PosController extends Controller
                 ];
             }
 
-            $total = $subtotal - $discount;
+            // Handle customer/member
+            $customer = null;
+            $memberDiscount = 0;
+            $birthdayDiscount = 0;
+            $pointDiscount = 0;
+
+            if ($customerPhone && Setting::getValue('member_enabled', true)) {
+                $phone = PhoneHelper::normalize($customerPhone);
+                $customer = $this->membershipService->findOrRegisterCustomer(
+                    $phone,
+                    $validated['customer_name'] ?? null,
+                    $validated['customer_birth_date'] ?? null,
+                );
+
+                // Calculate best discount (member vs birthday)
+                $bestDiscount = $this->membershipService->determineBestDiscount($customer, $subtotal, $channel);
+
+                if ($bestDiscount['type'] === 'member') {
+                    $memberDiscount = $bestDiscount['amount'];
+                } elseif ($bestDiscount['type'] === 'birthday') {
+                    $birthdayDiscount = $bestDiscount['amount'];
+                    // Mark birthday as used
+                    $customer->update(['last_birthday_used_at' => now()]);
+                }
+
+                // Point redemption
+                if ($pointsUsed > 0) {
+                    $this->membershipService->validateRedemption($customer, $pointsUsed);
+                    $pointDiscount = $this->membershipService->calculatePointDiscount($pointsUsed);
+
+                    // Ensure total doesn't go negative
+                    $maxPointDiscount = $subtotal - $memberDiscount - $birthdayDiscount - $discount;
+                    if ($pointDiscount > $maxPointDiscount) {
+                        $pointDiscount = max(0, $maxPointDiscount);
+                    }
+                }
+            }
+
+            $total = max(0, $subtotal - $discount - $memberDiscount - $birthdayDiscount - $pointDiscount);
             $paymentAmount = $validated['payment_amount'] ?? null;
             $changeAmount = ($paymentMethod === 'Cash' && $paymentAmount) ? $paymentAmount - $total : null;
 
@@ -72,8 +133,13 @@ class PosController extends Controller
                 'transaction_number' => $this->generateTransactionNumber(),
                 'date' => now(),
                 'channel' => $channel,
+                'customer_id' => $customer?->id,
                 'subtotal' => $subtotal,
                 'discount' => $discount,
+                'member_discount' => $memberDiscount,
+                'birthday_discount' => $birthdayDiscount,
+                'points_used' => $pointsUsed,
+                'point_discount' => $pointDiscount,
                 'total' => $total,
                 'payment_method' => $paymentMethod,
                 'payment_amount' => $paymentAmount,
@@ -93,11 +159,9 @@ class PosController extends Controller
                     'subtotal' => $data['subtotal'],
                 ]);
 
-                // Update product stock
                 $stockBefore = $data['product']->stock;
                 $data['product']->decrement('stock', $data['quantity']);
 
-                // Record stock movement
                 StockMovement::create([
                     'product_id' => $data['product']->id,
                     'transaction_id' => $transaction->id,
@@ -109,6 +173,23 @@ class PosController extends Controller
                 ]);
             }
 
+            // Handle point operations for member
+            if ($customer) {
+                // Redeem points
+                if ($pointsUsed > 0) {
+                    $this->membershipService->redeemPoints($customer, $pointsUsed, $transaction);
+                }
+
+                // Earn points from final total
+                $earnedPoints = $this->membershipService->earnPoints($customer, $transaction, $channel);
+
+                // Update transaction with earned points
+                $transaction->update(['points_earned' => $earnedPoints]);
+
+                // Update customer stats
+                $this->membershipService->updateCustomerStats($customer, $total);
+            }
+
             return $transaction;
         });
 
@@ -118,10 +199,47 @@ class PosController extends Controller
 
     public function receipt(Transaction $transaction): Response
     {
-        $transaction->load('items');
+        $transaction->load(['items', 'customer']);
+
+        // Get receipt settings
+        $receiptSettings = [
+            'show_member_info' => Setting::getValue('receipt_show_member_info', true),
+            'show_point_info' => Setting::getValue('receipt_show_point_info', true),
+            'show_savings' => Setting::getValue('receipt_show_savings', true),
+            'show_promo_footer' => Setting::getValue('receipt_show_promo_footer', true),
+            'header_text' => Setting::getValue('receipt_header_text', 'Dlatif Store'),
+            'address' => Setting::getValue('receipt_address', ''),
+            'phone' => Setting::getValue('receipt_phone', ''),
+            'social_media' => Setting::getValue('receipt_social_media', ''),
+            'footer_text' => Setting::getValue('receipt_footer_text', 'Terima kasih sudah belanja!'),
+            'promo_text' => Setting::getValue('receipt_promo_text', ''),
+        ];
+
+        $maskedPhone = null;
+        $isBirthday = false;
+        $pointsBefore = 0;
+
+        if ($transaction->customer) {
+            $maskedPhone = PhoneHelper::mask($transaction->customer->phone);
+            $isBirthday = $transaction->birthday_discount > 0;
+            // Calculate points before this transaction
+            $pointsBefore = $transaction->customer->points
+                - $transaction->points_earned
+                + $transaction->points_used;
+        }
+
+        $totalSavings = $transaction->member_discount
+            + $transaction->birthday_discount
+            + $transaction->point_discount
+            + $transaction->discount;
 
         return Inertia::render('Pos/Receipt', [
             'transaction' => $transaction,
+            'receiptSettings' => $receiptSettings,
+            'maskedPhone' => $maskedPhone,
+            'isBirthday' => $isBirthday,
+            'pointsBefore' => $pointsBefore,
+            'totalSavings' => $totalSavings,
         ]);
     }
 
@@ -130,6 +248,6 @@ class PosController extends Controller
         $date = now()->format('Ymd');
         $count = Transaction::whereDate('date', today())->count() + 1;
 
-        return "TRX-{$date}-" . str_pad((string) $count, 4, '0', STR_PAD_LEFT);
+        return "TRX-{$date}-".str_pad((string) $count, 4, '0', STR_PAD_LEFT);
     }
 }
