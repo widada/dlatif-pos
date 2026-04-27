@@ -52,7 +52,7 @@ class TransactionController extends Controller
 
     public function show(Transaction $transaction): Response
     {
-        $transaction->load('items');
+        $transaction->load(['items', 'cashier:id,name']);
 
         return Inertia::render('Transactions/Show', [
             'transaction' => $transaction,

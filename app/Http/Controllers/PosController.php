@@ -133,6 +133,7 @@ class PosController extends Controller
                 'transaction_number' => $this->generateTransactionNumber(),
                 'date' => now(),
                 'channel' => $channel,
+                'cashier_id' => auth()->id(),
                 'customer_id' => $customer?->id,
                 'subtotal' => $subtotal,
                 'discount' => $discount,
@@ -199,7 +200,7 @@ class PosController extends Controller
 
     public function receipt(Transaction $transaction): Response
     {
-        $transaction->load(['items', 'customer']);
+        $transaction->load(['items', 'customer', 'cashier:id,name']);
 
         // Get receipt settings
         $receiptSettings = [

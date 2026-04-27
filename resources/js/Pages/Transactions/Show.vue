@@ -20,6 +20,7 @@
             <div class="info-row"><span class="info-label">Tanggal</span><span class="info-val">{{ formatDate(transaction.date) }}</span></div>
             <div class="info-row"><span class="info-label">Channel</span><span :class="['ch-badge', transaction.channel.toLowerCase()]">{{ transaction.channel }}</span></div>
             <div class="info-row"><span class="info-label">Pembayaran</span><span class="info-val">{{ transaction.payment_method }}</span></div>
+            <div v-if="transaction.cashier" class="info-row"><span class="info-label">Kasir</span><span class="info-val">{{ transaction.cashier.name }}</span></div>
             <div v-if="transaction.notes" class="info-row"><span class="info-label">Catatan</span><span class="info-val">{{ transaction.notes }}</span></div>
           </div>
         </div>

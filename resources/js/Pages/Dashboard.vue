@@ -143,20 +143,22 @@ const greetingText = computed(() => {
 const todayFormatted = new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 
 const compareClass = computed(() => {
-  if (props.stats.salesYesterday === 0 && props.stats.salesToday === 0) return '';
-  return props.stats.salesToday >= props.stats.salesYesterday ? 'up' : 'down';
+  const y = props.stats.salesYesterday ?? 0;
+  const t = props.stats.salesToday ?? 0;
+  if (y === 0 && t === 0) return '';
+  return t >= y ? 'up' : 'down';
 });
 
 const compareText = computed(() => {
-  const y = props.stats.salesYesterday;
-  const t = props.stats.salesToday;
+  const y = props.stats.salesYesterday ?? 0;
+  const t = props.stats.salesToday ?? 0;
   if (y === 0 && t === 0) return 'Belum ada penjualan';
   if (y === 0) return '↑ Baru mulai hari ini';
   const pct = Math.round(((t - y) / y) * 100);
   return pct >= 0 ? `↑ ${pct}% dari kemarin` : `↓ ${Math.abs(pct)}% dari kemarin`;
 });
 
-function fmt(v) { return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(v); }
+function fmt(v) { return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(v || 0); }
 
 function typeLabel(type) {
   const map = { sale: 'Jual', purchase: 'Beli', adjustment_in: 'Masuk', adjustment_out: 'Keluar' };

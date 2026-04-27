@@ -15,13 +15,13 @@
       </div>
 
       <form @submit.prevent="submit" class="login-form">
-        <div v-if="form.errors.email" class="error-alert">
-          {{ form.errors.email }}
+        <div v-if="form.errors.username" class="error-alert">
+          {{ form.errors.username }}
         </div>
 
         <div class="form-group">
-          <label for="email">Email</label>
-          <input id="email" v-model="form.email" type="email" placeholder="email@contoh.com" autofocus autocomplete="email" />
+          <label for="username">Username</label>
+          <input id="username" v-model="form.username" type="text" placeholder="username" autofocus autocomplete="username" />
         </div>
 
         <div class="form-group">
@@ -59,7 +59,7 @@ import { Head, useForm } from '@inertiajs/vue3';
 const showPassword = ref(false);
 
 const form = useForm({
-  email: '',
+  username: '',
   password: '',
   remember: false,
 });
@@ -144,9 +144,8 @@ function submit() {
   margin-bottom: 0.35rem;
 }
 
-.form-group input[type="email"],
-.form-group input[type="password"],
-.form-group input[type="text"] {
+.form-group input[type="text"],
+.form-group input[type="password"] {
   width: 100%;
   background: var(--c-input-bg);
   border: 1px solid var(--c-input-border);

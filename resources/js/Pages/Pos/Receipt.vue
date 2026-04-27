@@ -29,6 +29,10 @@
               <td class="lbl">Pembayaran</td>
               <td class="val">{{ transaction.payment_method }}</td>
             </tr>
+            <tr v-if="transaction.cashier">
+              <td class="lbl">Kasir</td>
+              <td class="val">{{ transaction.cashier.name }}</td>
+            </tr>
           </table>
           <!-- Member Info -->
           <template v-if="transaction.customer && rs.show_member_info">

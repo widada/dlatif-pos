@@ -21,6 +21,7 @@ class Transaction extends Model
         'transaction_number',
         'date',
         'channel',
+        'cashier_id',
         'customer_id',
         'subtotal',
         'discount',
@@ -54,6 +55,11 @@ class Transaction extends Model
             'payment_amount' => 'decimal:2',
             'change_amount' => 'decimal:2',
         ];
+    }
+
+    public function cashier(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'cashier_id');
     }
 
     public function customer(): BelongsTo
